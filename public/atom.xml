@@ -6,7 +6,7 @@
   <link href="https://unclevicky.github.io/rabbitBear/atom.xml" rel="self"/>
   
   <link href="https://unclevicky.github.io/rabbitBear/"/>
-  <updated>2021-02-03T15:31:44.415Z</updated>
+  <updated>2021-02-07T04:00:06.719Z</updated>
   <id>https://unclevicky.github.io/rabbitBear/</id>
   
   <author>
@@ -15,6 +15,37 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>hexo博客基础环境搭建（非常详细）</title>
+    <link href="https://unclevicky.github.io/rabbitBear/2021/02/07/hexo%E5%8D%9A%E5%AE%A2%E5%9F%BA%E7%A1%80%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/"/>
+    <id>https://unclevicky.github.io/rabbitBear/2021/02/07/hexo%E5%8D%9A%E5%AE%A2%E5%9F%BA%E7%A1%80%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/</id>
+    <published>2021-02-07T02:36:33.000Z</published>
+    <updated>2021-02-07T04:00:06.719Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="【背景】"><a href="#【背景】" class="headerlink" title="【背景】"></a><strong>【背景】</strong></h3><p style="text-indent:2em">我是一名学财务的文科生，没有任何计算机基础，但是喜欢写文章，之前都是在微信公众号上写，但是有诸多限制，于是萌生了想搭建一个自己的博客的念头。我把我的想法告诉了我的一个朋友（姑且成他为X君吧），X君帮我搭建了一个网站，并把过程将给我听。我根据X君的教程，自己也把环境搭建起来了。在这里做一个记录。算是在新博客网站中的第一篇文章吧。</p><h3 id="【目标】"><a href="#【目标】" class="headerlink" title="【目标】"></a><strong>【目标】</strong></h3><ol><li>使用nodejs的hexo搭建本地博客系统</li><li>使用git进行版本管理（和小伙伴们协同工作的必备良兔（tool））</li><li>使用github进行代码托管（X君告诉我自己写的东西可以上传到这个网站，可以当作一个本地的备份，也可以随时随地工作，但是要注意隐私问题）</li><li>使用github Page作为博客网站的访问（X君说这是一个免费的个人网页托管服务器，不是很懂，反正就是能通过他自定义并访问自己的文章）</li></ol><h3 id="【小白科普】"><a href="#【小白科普】" class="headerlink" title="【小白科普】"></a><strong>【小白科普】</strong></h3><ol><li><strong>运行环境</strong><ul><li>任何软件的运行都需要环境，比如win10需要在笔记本电脑上运行，andriod需要在手机上运行；笔记本电脑和手机就是win0和android这俩软件的运行环境</li><li>操作系统是一个特殊的软件，他们为其他软件的运行提供环境，比如QQ、微信都需要安装在win10、ios或android操作系统上才能运行，只不过他们要求的格式不一样，win10可以运行exe软件，ios可以运行dmg文件，andriod运行pkg文件等。</li><li>针对那些没有可视化交互界面的软件，操作系统会给他们提供一个特殊的运行环境。比如win10的cmd运行环境，mac的bash环境，androi也有只不过我们在手机上不常用。（不太好理解，但是可以类比win10需要笔记本电脑提供环境，QQ需要win10操作系统提供环境，python等没有界面的软件需要cmd提供环境一样类比着理解）</li><li>python、nodejs、mysql等这些都是没有可视化交互界面的软件，所以需要我们在cmd或者bash中运行（X君说python和nodejs也有图形交互界面，但是为了让我更好的理解这些概念，所以就不推荐我使用）</li></ul></li><li><strong>环境变量</strong><ul><li>上面提到了运行环境，但是我按X君的教程搭建环境的时候，经常<strong>提示某某文件后文件夹找不见</strong>，于是X君又给我普及了<strong>环境变量</strong>的概念。</li><li>当我们使用cmd或bash运行一个软件时，会以以下顺序<ul><li>首先会在<strong>当前目录</strong>中寻找是否有该软件（例如python.exe）；</li><li>如果没有则会在<strong>当前用户的PATH环境变量指定的所有目录中按先后顺序循环寻找</strong>，如果找到了就直接运行，不再往下找。这个PATH就是一个环境变量（可以理解为一个字符串），存放了一堆的文件夹目录，win10是以“;”隔开，mac是以“：”隔开，大概长下面这个样子。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/Users/abbywalker/opt/anaconda3/bin:/Users/abbywalker/opt/anaconda3/condabin:/Library/Frameworks/Python.framework/Versions/3.8/bin:/usr/<span class="built_in">local</span>/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/<span class="built_in">local</span>/mysql/bin</span><br></pre></td></tr></table></figure></li><li>如果还没有则会继续在<strong>系统的PATH环境变量指定的所有目录中按先后顺序循环寻找</strong></li><li>如果还是找不到，就会报错<strong>提示某某文件后文件夹找不见</strong></li></ul></li></ul></li><li><strong>运行软件的5个方法</strong><ul><li>根据上面环境变量的介绍，运行软件可以有5种方法</li><li>直接到该软件的安装目录下运行 （对应于环境变量中的<strong>当前目录</strong>）</li><li>把该软件的安装目录加入到<strong>该用户的PATH变量</strong>中（具体方法后面讲）</li><li>在当前运行的cmd或bash中临时指定，而不影响其他的程序运行（X君建议使用这种方法，这样可以同一个电脑安装多版本的软件，比如同时安装python2.7和3.7，通过这种方法临时指定当前运行的环境而不影响其他程序）（具体方法后面讲）</li><li>把该软件的安装目录加入到<strong>系统的PATH变量</strong>中（具体方法后面讲）</li><li>直接指定该软件安装目录的绝对路径进行执行，例如:<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&gt;/usr/<span class="built_in">local</span>/mysql/bin/python <span class="comment">#mac的bash环境</span></span><br><span class="line">&gt;d:\soft\pytthon\python.exe <span class="comment">#win10的cmd环境</span></span><br></pre></td></tr></table></figure><p style="text-indent:2em">好了，小白科普到此结束，下面进入本文正题</p></li></ul></li></ol><h3 id="【环境准备】"><a href="#【环境准备】" class="headerlink" title="【环境准备】"></a><strong>【环境准备】</strong></h3><ol><li>安装git</li><li>安装nodejs</li><li>安装hexo</li><li>github搭建个人仓库</li><li><strong>github设置多Page</strong>（默认一个账户只能有一个主页Page）</li><li>生产SSH并添加到github</li><li>将hexo发布到github</li><li>页面访问（本地预览和公网访问）<p style="text-indent:2em">PS：X君用的是windows，我用的是mac所以教程会写两份。</p></li></ol><h4 id="安装git"><a href="#安装git" class="headerlink" title="安装git"></a><strong>安装git</strong></h4><ol><li>windows的比较简单，直接下载软件，一路下一步即可；</li><li>mac上安装稍微复杂一点，安装过程记录以下；</li></ol><h4 id="安装nodejs"><a href="#安装nodejs" class="headerlink" title="安装nodejs"></a><strong>安装nodejs</strong></h4><h4 id="安装hexo"><a href="#安装hexo" class="headerlink" title="安装hexo"></a><strong>安装hexo</strong></h4><h4 id="github搭建个人仓库"><a href="#github搭建个人仓库" class="headerlink" title="github搭建个人仓库"></a><strong>github搭建个人仓库</strong></h4><h4 id="github设置多Page"><a href="#github设置多Page" class="headerlink" title="github设置多Page"></a><strong>github设置多Page</strong></h4><h4 id="生产SSH并添加到github"><a href="#生产SSH并添加到github" class="headerlink" title="生产SSH并添加到github"></a><strong>生产SSH并添加到github</strong></h4><h4 id="将hexo发布到github"><a href="#将hexo发布到github" class="headerlink" title="将hexo发布到github"></a><strong>将hexo发布到github</strong></h4><h4 id="页面访问（本地预览和公网访问）"><a href="#页面访问（本地预览和公网访问）" class="headerlink" title="页面访问（本地预览和公网访问）"></a><strong>页面访问（本地预览和公网访问）</strong></h4>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;h3 id=&quot;【背景】&quot;&gt;&lt;a href=&quot;#【背景】&quot; class=&quot;headerlink&quot; title=&quot;【背景】&quot;&gt;&lt;/a&gt;&lt;strong&gt;【背景】&lt;/strong&gt;&lt;/h3&gt;&lt;p style=&quot;text-indent:2em&quot;&gt;
+我是一名学财务的文科生，没有任何计算机基</summary>
+      
+    
+    
+    
+    <category term="基础教程" scheme="https://unclevicky.github.io/rabbitBear/categories/%E5%9F%BA%E7%A1%80%E6%95%99%E7%A8%8B/"/>
+    
+    <category term="环境搭建" scheme="https://unclevicky.github.io/rabbitBear/categories/%E5%9F%BA%E7%A1%80%E6%95%99%E7%A8%8B/%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/"/>
+    
+    
+    <category term="hexo" scheme="https://unclevicky.github.io/rabbitBear/tags/hexo/"/>
+    
+    <category term="github" scheme="https://unclevicky.github.io/rabbitBear/tags/github/"/>
+    
+    <category term="博客" scheme="https://unclevicky.github.io/rabbitBear/tags/%E5%8D%9A%E5%AE%A2/"/>
+    
+  </entry>
   
   <entry>
     <title>【量化投资】05.读取csv文件保存到mysql数据库</title>
