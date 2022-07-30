@@ -104,5 +104,5 @@ theme: butterfly #next #butterfly #landscape
 ## Docs: https://hexo.io/docs/one-command-deployment
 deploy:
   type: git
-  repo: https://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@github.com/unclevicky/rabbitBear.git
+  repo: https://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@github.com/unclevicky/rabbitBear.git
   branch: main

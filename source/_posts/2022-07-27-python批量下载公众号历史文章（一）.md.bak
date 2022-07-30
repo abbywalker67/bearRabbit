@@ -1,0 +1,583 @@
+---
+title: 【半自动版】python批量下载公众号历史文章（一）
+date: 2022-07-27 13:50:59
+categories:
+- [技术, 实践, python]
+- [兴趣研究, 技术, 爬虫]
+tags:
+- 爬虫
+- 公众号
+- 技术
+- python
+---
+
+### **【老博客地址】**
+&emsp;&emsp;[【CSDN】博客主页](https://blog.csdn.net/MissYourKiss/)
+&emsp;&emsp;[【纯技术交流】python批量下载公众号历史文章（一）](https://blog.csdn.net/MissYourKiss/article/details/100254510)
+&emsp;&emsp;*(在刊载一段时间后，莫名被吞掉了,所以在这里补档)*
+&emsp;&emsp;[python批量下载公众号历史文章（二）](https://blog.csdn.net/MissYourKiss/article/details/100661899)
+
+### **【写在前面】**
+<p style="text-indent:2em">
+前些天和同事讨论问题，什么是人才？讨论细节就不表了，最终总结为一句话：能解决问题的人才是人才。自己爱交朋友，很多朋友都在我有困难的时候帮助过我，也希望自己能够帮助朋友，成为能帮朋友解决问题的人才，所以朋友的请求从来都是来者不拒，力所能及之事一定全力办到！
+</p>
+<p style="text-indent:2em">
+基于这点，给自己挖了很多坑：前些日子写的学习强国自动学习已经完成了一个初步版本，能够自动读文章、自动学习视频、自动分享，但是还不能自动答题，朋友说已经够用了，不过还是希望有时间了完成这块儿的内容；想读黄易老爷子武侠的那位朋友的问题也解决了，虽然下载下来的文字部分章节格式上有些乱，但也满足了朋友的要求，够用就行；学习Python也是一样，因时间关系没有系统的去学习过，只是通过解决各种问题达到学以致用，够用就行。很多博客文章，写有序号，都是计划要分段完成的，希望自己有一天能把所有的坑都填完了。
+</p>
+
+### **【背景】**
+<p style="text-indent:2em">
+昨天和朋友去野钓，路上谈起股票。今年截止到目前，他的收益是40%多。问他炒股的心得，他是数据流派，经常看财务数据，就推荐了几个公众号，同时提出了一个请求，有些公众号历史文章太多，每次翻看之前的文章都得重头刷，问我能不能把这些文章下载到本地，自己想看的时候就看。想着不难，就答应姑且一试。
+</p>
+
+### **【目标】**
+&emsp;&emsp;第一个版本，只是为了实现下载朋友指定的公众号的历史文章，并转换成pdf方便阅读。很多需要手工配合，算是一个半自动的版本吧。
+&emsp;&emsp;后续会陆续减少手工，并把文章存储在数据库里，支持检索等。
+
+### **【思路】**
+&emsp;&emsp;和从网页上爬取小说不同，微信的公众号是通过app操作进行爬取，所以不能直接用chrome查看网页源码进行解析，需要用到第三方抓包工具，网上看了下用的比较多的有fiddler和anyproxy，前者比较简单，就选择了前者，思路如下：
+&emsp;&emsp;1、通过fiddler抓取相应公众号的包（需要手动）；
+&emsp;&emsp;2、通过python进行解析，获取历史文章列表信息json；
+&emsp;&emsp;3、通过python进行解析，获取所有文章信息，包括标题、链接等；
+&emsp;&emsp;4、通过python循环将这些文章下载到本地存为html；
+&emsp;&emsp;5、通过python将文章里面的图片都保存到本地；
+&emsp;&emsp;6、通过python将本地html文件里面的图片链接，修改为本地存储图片的路径（因为只存文章还不行，你会发现存到本地的html文件，里面的图片都无法正常显示）；
+&emsp;&emsp;7、通过python调用wkhtmltopdf工具，将html转换成pdf。
+
+### **【工具】**
+&emsp;&emsp;1、抓包工具fiddler；
+&emsp;&emsp;2、html转pdf工具wkhtmltopdf；
+&emsp;&emsp;3、python3.7及对应的包；
+&emsp;&emsp;4、电脑版微信或者模拟器或者直接用手机也行（如果用手机或者模拟器，需要设置代理）；
+
+### **【准备工作之抓包】**
+&emsp;&emsp;有些公众号的包比较特殊，所以要进行不同的处理。以朋友要求的公众号为例（为了避免广告嫌疑，就不写是啥公众号了）。
+&emsp;&emsp;1、下载fiddler软件，因为公众号里都是https的链接，需要做抓包配置。中间会弹出一些框框让确认，全部点确定就行。
+<br />
+{% asset_img fiddle_setup_1.png fiddle设置 %}
+{% asset_img fiddle_setup_2.png fiddle设置 %}
+
+&emsp;&emsp;2、打开电脑版微信，搜索需要的公众号，点开历史文章列表。通过fiddler查看抓到的包的特点。
+<br />
+{% asset_img analyse_pkg_1.png 打开公众号链接 %}
+{% asset_img analyse_pkg_2.png fiddle分析包特点 %}
+{% asset_img analyse_pkg_3.png fiddle分析包特点 %}
+
+&emsp;&emsp;3、为了避免其他链接的干扰，配置过滤规则，滤掉不需要的链接。
+<br />
+{% asset_img fiddle_filters.png 股票清单和基本信息-网页 %}
+
+
+&emsp;&emsp;4、然后清空fiddler的抓取记录，重新点击历史文章，并不断下拉，直到所有链接都显示出来为止。
+<br />
+{% asset_img fiddle_info_1.png fiddle抓包信息 %}
+{% asset_img fiddle_info_2.png fiddle抓包信息 %}
+
+&emsp;&emsp;5、将过滤之后获得的所有的seesion，以raw的形式保存到本地。
+<br />
+{% asset_img fiddle_raw_1.png fiddle保持raw格式session %}
+{% asset_img fiddle_raw_2.png fiddle保持raw格式session %}
+{% asset_img fiddle_raw_3.png fiddle保持raw格式session %}
+{% asset_img fiddle_raw_4.png fiddle保持raw格式session %}
+
+### **【编码】**
+&emsp;&emsp;**1、标准报文头和需要的包**
+```
+# _*_ coding:utf-8 _*_
+import os,sys
+import requests
+import json
+import subprocess
+import re
+import random
+import time
+from bs4 import BeautifulSoup
+from datetime import datetime,timedelta
+from time import sleep
+```
+&emsp;&emsp;**2、定义一个文章类，保存文章的基本信息**
+```
+class ArticleInfo():
+    def __init__(self,url,title,idx_num): #idx_num是为了方便保存图片命名
+        self.url = url
+        self.title = title
+        self.idx_num = idx_num
+```
+&emsp;&emsp;**3、定义读取文件内容的方法（通用）**
+```
+def read_file(file_path):
+    with open(file_path,"r",encoding="utf-8") as f:
+        file_content = f.read()
+    return file_content
+```
+&emsp;&emsp;**4、定义写文件内容的方法（通用）**
+```
+def save_file(file_path,file_content):
+    with open(file_path,"w",encoding="utf-8") as f:
+        f.write(file_content)
+```
+&emsp;&emsp;**5、定义下载网页html的方法（通用）**
+```
+def get_html(url):
+    headers = {
+        "Accept": "*/*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36 QBCore/4.0.1219.400 QQBrowser/9.0.2524.400 Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36 MicroMessenger/6.5.2.501 NetType/WIFI WindowsWechat",
+        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.5;q=0.4",
+        'Connection':'keep-alive'
+    }
+    response = requests.get(url,headers = headers,proxies=None)
+    if response.status_code == 200:
+        htmltxt = response.text #返回的网页正文
+        return htmltxt
+    else:
+        return None
+```
+&emsp;&emsp;**6、定义下载并保存网页图片的方法（通用）**
+```
+def get_save_image(url,img_file_path):
+    headers = {
+        "Accept": "*/*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36 QBCore/4.0.1219.400 QQBrowser/9.0.2524.400 Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36 MicroMessenger/6.5.2.501 NetType/WIFI WindowsWechat",
+        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.5;q=0.4",
+        'Connection':'keep-alive'
+    }
+    response = requests.get(url,headers = headers,proxies=None)
+    with open(img_file_path,"wb") as f:
+        f.write(response.content)
+```
+&emsp;&emsp;**7、定义调用下载html和图片的方法（主函数调用此方法开始下载）**
+```
+def down_html(json_path,html_path):
+    if not os.path.exists(html_path):
+        os.makedirs(html_path) # 创建保存html文件的文件夹
+    local_img_path = os.path.join(html_path,"images")
+    if not os.path.lexists(local_img_path):
+        os.makedirs(local_img_path) # 创建保存本地图片的文件夹
+    article_list = get_article_list(json_path)
+    article_list.sort(key=lambda x:x.atc_datetime, reverse=True) # 根据文章发表时间倒序排列
+    tot_article = len(article_list) # 文章的总数量
+    i = 0 #计数用
+    for atc in article_list:
+        i+=1
+        atc_unique_name = str(atc.atc_datetime) + "_" + str(atc.idx_num) # 时间+序号 作为同一时间发表的文章的唯一标识
+        html_name = atc_unique_name+".html"
+        html_file_path = os.path.join(html_path,html_name)
+        print(i,"of",tot_article,atc_unique_name,atc.title)
+        if os.path.exists(html_file_path): # 支持续传
+            print("{} existed already!".format(html_file_path))
+            continue
+        org_atc_html = get_html(atc.url)
+        new_atc_html = rep_image(org_atc_html,local_img_path,html_name)
+        save_file(html_file_path,new_atc_html)
+        sleep(round(random.uniform(1,3),2))
+        """for test
+        if i>0 :
+            break
+        """
+```
+&emsp;&emsp;**8、查看fiddler保存的json文件结构，定义解析json字符串获取文章列表的方法**
+```
+def get_article_list(json_path):
+    """
+    通过抓取的包的json文件，获取所有文章的信息的列表
+    """
+    file_list = os.listdir(json_path) #jsonpath是fiddler导出的文件夹路径
+    article_list = [] # 用来保存所有文章的列表
+    for file in file_list:
+        file_path = os.path.join(json_path,file)
+        file_cont = read_file(file_path)
+        json_cont = json.loads(file_cont)
+        general_msg_list = json_cont['general_msg_list']
+        json_list = json.loads(general_msg_list)
+        #print(json_list['list'][0]['comm_msg_info']['datetime'])
+        for lst in json_list['list']:
+            atc_idx = 0 # 每个时间可以发多篇文章 为了方便后续图片命名
+            seconds_datetime = lst['comm_msg_info']['datetime']
+            atc_datetime = seconds_to_time(seconds_datetime)
+            if lst['comm_msg_info']['type'] == 49: # 49为普通的图文
+                atc_idx+=1
+                url = lst['app_msg_ext_info']['content_url']
+                title = lst['app_msg_ext_info']['title']
+                atc_info = ArticleInfo(url,title,atc_idx,atc_datetime)
+                article_list.append(atc_info)
+            if 1 == lst['app_msg_ext_info']['is_multi']: # 一次发多篇
+                multi_app_msg_item_list = lst['app_msg_ext_info']['multi_app_msg_item_list']
+                for multi in multi_app_msg_item_list:
+                    atc_idx+=1
+                    url = multi['content_url']
+                    title = multi['title']
+                    mul_act_info = ArticleInfo(url,title,atc_idx,atc_datetime)
+                    article_list.append(mul_act_info)
+    return article_list
+```
+<br />
+{% asset_img raw_info.png fiddle保持raw具体内容 %}
+
+&emsp;&emsp;**9、定义替换html中图片src为本地图片的方法（不替换，html中的图片将无法显示）**
+```
+def chg_img_link(bs_html):
+    link_list = bs_html.findAll("link")
+    for link in link_list:
+        href = link.attrs["href"]
+        if href.startswith("//"):
+            new_href = "http:"+href
+            link.attrs["href"]=new_href
+ 
+def rep_image(org_html,local_img_path,html_name):
+    bs_html = BeautifulSoup(org_html,"lxml")
+    img_list = bs_html.findAll("img")
+    img_idx = 0 # 计数和命名用
+    for img in img_list:
+        img_idx+=1
+        org_url = "" # 图片的真实地址
+        if "data-src" in img.attrs: # <img  data-src="..."
+            org_url = img.attrs['data-src']
+        elif "src" in img.attrs : # <img  src="..."
+            org_url = img.attrs['src']
+        if org_url.startswith("//"):
+            org_url = "http:" + org_url
+        if len(org_url) > 0 :
+            print("download image ",img_idx)
+            if "data-type" in img.attrs:
+                img_type = img.attrs["data-type"]
+            else:
+                img_type = "png"
+            img_name = html_name + "_" + str(img_idx) + "." +img_type
+            img_file_path = os.path.join(local_img_path,img_name)
+            get_save_image(org_url,img_file_path) # 下载并保存图片
+            img.attrs["src"] = "images/" + img_name
+        else:
+            img.attrs["src"] = ""
+    chg_img_link(bs_html)
+    return str(bs_html)
+```
+<br />
+{% asset_img without_img.png 未替换本地图片源 %}
+{% asset_img with_img.png 替换本地图片源 %}
+
+&emsp;&emsp;**10、定义html转换成pdf的方法**
+```
+def conv_html_pdf(html_path,pdf_path):
+    if not os.path.exists(pdf_path):
+        os.makedirs(pdf_path)
+    f_list = os.listdir(html_path)
+    for f in f_list:
+        if (not f[-5:]==".html") or ("tmp" in f): #不是html文件的不转换，含有tmp的不转换
+            continue
+        html_file_path = os.path.join(html_path,f)
+        html_tmp_file = html_file_path[:-5]+"_tmp.html" #生成临时文件，供转pdf用
+        html_str = read_file(html_file_path)
+        bs_html = BeautifulSoup(html_str,"lxml")
+        pdf_title = ""
+        title_tag = bs_html.find(id="activity-name")
+        if title_tag is not None:
+            pdf_title = "_"+title_tag.get_text().replace(" ", "").replace("  ","").replace("\n","")
+        print(pdf_title)
+        r_idx = html_file_path.rindex("/") + 1
+        pdf_name = html_file_path[r_idx:-5]+pdf_title
+        pdf_file_path = os.path.join(pdf_path,pdf_name+".pdf")
+        """
+        加快转换速度，把临时文件中的不必要的元素去掉
+        """
+        [s.extract() for s in bs_html(["script","iframe","link"])]
+        save_file(html_tmp_file,str(bs_html))
+        call_wkhtmltopdf(html_tmp_file,pdf_file_path)
+ ```
+ ```
+def call_wkhtmltopdf(html_file_path,pdf_file_path,skipExists=True,removehtml=True):
+    if skipExists and os.path.exists(pdf_file_path):
+        print("pdf_file_path already existed!")
+        if removehtml :
+            os.remove(html_file_path)
+        return
+    exe_path = cfg['wkhtmltopdf'] #wkhtmltopdf.exe的保存路径
+    cmd_list = []
+    cmd_list.append(" --load-error-handling ignore ")
+    cmd_list.append(" "+ html_file_path +" ")
+    cmd_list.append(" "+ pdf_file_path +" ")
+    cmd_str = exe_path + "".join(cmd_list)
+    print(cmd_str)
+    subprocess.check_call(cmd_str, shell=False)
+    if removehtml:
+        os.remove(html_file_path)
+```
+
+&emsp;&emsp;**11、定义读取保存各文件夹路径的配置文件的方法
+```
+def get_config():
+    cfg_file = read_file("config/wechat.cfg")
+    cfg_file = cfg_file.replace("\\\\","/").replace("\\","/") #防止json中有 / 导致无法识别
+    cfg_json = json.loads(cfg_file)
+    return cfg_json
+```
+
+&emsp;&emsp;**【重要】配置文件放置在当前目录的子目录config下，名为wechat.cfg,内容如下**
+```
+{
+    "jsonDir": "./download/wechat/fiddler-raw/Dump-0902-14-43-38/",
+    "htmlDir": "./download/wechat/html/",
+    "pdfDir": "./download/wechat/pdf/",
+    "wkhtmltopdf": "./wkhtmltopdf.exe"
+}
+```
+
+&emsp;&emsp;**12、定义从秒数获得时间的方法（微信公众号的datetime存放的是从1970-01-01 00:00:00到发表时的秒数）**
+```
+def seconds_to_time(seconds):
+    taime_array = time.localtime(seconds) # 1970-01-01 00:00:00 到发表时的秒数
+    other_style_time = time.strftime("%Y-%m-%d %H:%M:%S", taime_array)
+    date_time =datetime.strptime(other_style_time, "%Y-%m-%d %H:%M:%S")
+    return str(date_time).replace("-","").replace(":","").replace(" ","")
+```
+
+&emsp;&emsp;**13、定义主函数进行调用，没有参数或者参数是html则进行下载，如果是pdf则是html转换成pdf**
+```
+cfg = get_config() # 获得配置文件的全局变量
+#get_article_list("./tmp/") # for test
+#down_html("./tmp/","./html/")# for test
+ 
+if __name__ == "__main__":
+ 
+    if len(sys.argv) == 1:
+        arg = None
+    else:
+        arg = sys.argv[1]
+    if arg is None or arg == "html":
+        down_html(cfg['jsonDir'],cfg['htmlDir'])
+    elif arg == "pdf":
+        conv_html_pdf(cfg['htmlDir'],cfg['pdfDir'])
+```
+
+### **【运行效果】**
+<br />
+{% asset_img last_html.png html文件 %}
+{% asset_img last_pdf.png pdf文件 %}
+
+### **【完整代码】**
+```
+# _*_ coding:utf-8 _*_
+import os,sys
+import requests
+import json
+import subprocess
+import re
+import random
+import time
+from bs4 import BeautifulSoup
+from datetime import datetime,timedelta
+from time import sleep
+ 
+class ArticleInfo():
+    def __init__(self,url,title,idx_num,atc_datetime): #idx_num是为了方便保存图片命名
+        self.url = url
+        self.title = title
+        self.idx_num = idx_num
+        self.atc_datetime = atc_datetime
+ 
+def read_file(file_path):
+    with open(file_path,"r",encoding="utf-8") as f:
+        file_content = f.read()
+    return file_content
+ 
+def save_file(file_path,file_content):
+    with open(file_path,"w",encoding="utf-8") as f:
+        f.write(file_content)
+ 
+def get_html(url):
+    headers = {
+        "Accept": "*/*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36 QBCore/4.0.1219.400 QQBrowser/9.0.2524.400 Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36 MicroMessenger/6.5.2.501 NetType/WIFI WindowsWechat",
+        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.5;q=0.4",
+        'Connection':'keep-alive'
+    }
+    response = requests.get(url,headers = headers,proxies=None)
+    if response.status_code == 200:
+        htmltxt = response.text #返回的网页正文
+        return htmltxt
+    else:
+        return None
+ 
+def get_save_image(url,img_file_path):
+    headers = {
+        "Accept": "*/*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36 QBCore/4.0.1219.400 QQBrowser/9.0.2524.400 Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36 MicroMessenger/6.5.2.501 NetType/WIFI WindowsWechat",
+        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.5;q=0.4",
+        'Connection':'keep-alive'
+    }
+    response = requests.get(url,headers = headers,proxies=None)
+    with open(img_file_path,"wb") as f:
+        f.write(response.content)
+ 
+def get_article_list(json_path):
+    """
+    通过抓取的包的json文件，获取所有文章的信息的列表
+    """
+    file_list = os.listdir(json_path) #jsonpath是fiddler导出的文件夹路径
+    article_list = [] # 用来保存所有文章的列表
+    for file in file_list:
+        file_path = os.path.join(json_path,file)
+        file_cont = read_file(file_path)
+        json_cont = json.loads(file_cont)
+        general_msg_list = json_cont['general_msg_list']
+        json_list = json.loads(general_msg_list)
+        #print(json_list['list'][0]['comm_msg_info']['datetime'])
+        for lst in json_list['list']:
+            atc_idx = 0 # 每个时间可以发多篇文章 为了方便后续图片命名
+            seconds_datetime = lst['comm_msg_info']['datetime']
+            atc_datetime = seconds_to_time(seconds_datetime)
+            if lst['comm_msg_info']['type'] == 49: # 49为普通的图文
+                atc_idx+=1
+                url = lst['app_msg_ext_info']['content_url']
+                title = lst['app_msg_ext_info']['title']
+                atc_info = ArticleInfo(url,title,atc_idx,atc_datetime)
+                article_list.append(atc_info)
+            if 1 == lst['app_msg_ext_info']['is_multi']: # 一次发多篇
+                multi_app_msg_item_list = lst['app_msg_ext_info']['multi_app_msg_item_list']
+                for multi in multi_app_msg_item_list:
+                    atc_idx+=1
+                    url = multi['content_url']
+                    title = multi['title']
+                    mul_act_info = ArticleInfo(url,title,atc_idx,atc_datetime)
+                    article_list.append(mul_act_info)
+    return article_list
+ 
+def chg_img_link(bs_html):
+    link_list = bs_html.findAll("link")
+    for link in link_list:
+        href = link.attrs["href"]
+        if href.startswith("//"):
+            new_href = "http:"+href
+            link.attrs["href"]=new_href
+ 
+def rep_image(org_html,local_img_path,html_name):
+    bs_html = BeautifulSoup(org_html,"lxml")
+    img_list = bs_html.findAll("img")
+    img_idx = 0 # 计数和命名用
+    for img in img_list:
+        img_idx+=1
+        org_url = "" # 图片的真实地址
+        if "data-src" in img.attrs: # <img  data-src="..."
+            org_url = img.attrs['data-src']
+        elif "src" in img.attrs : # <img  src="..."
+            org_url = img.attrs['src']
+        if org_url.startswith("//"):
+            org_url = "http:" + org_url
+        if len(org_url) > 0 :
+            print("download image ",img_idx)
+            if "data-type" in img.attrs:
+                img_type = img.attrs["data-type"]
+            else:
+                img_type = "png"
+            img_name = html_name + "_" + str(img_idx) + "." +img_type
+            img_file_path = os.path.join(local_img_path,img_name)
+            get_save_image(org_url,img_file_path) # 下载并保存图片
+            img.attrs["src"] = "images/" + img_name
+        else:
+            img.attrs["src"] = ""
+    chg_img_link(bs_html)
+    return str(bs_html)
+ 
+ 
+def down_html(json_path,html_path):
+    if not os.path.exists(html_path):
+        os.makedirs(html_path) # 创建保存html文件的文件夹
+    local_img_path = os.path.join(html_path,"images")
+    if not os.path.lexists(local_img_path):
+        os.makedirs(local_img_path) # 创建保存本地图片的文件夹
+    article_list = get_article_list(json_path)
+    article_list.sort(key=lambda x:x.atc_datetime, reverse=True) # 根据文章发表时间倒序排列
+    tot_article = len(article_list) # 文章的总数量
+    i = 0 #计数用
+    for atc in article_list:
+        i+=1
+        atc_unique_name = str(atc.atc_datetime) + "_" + str(atc.idx_num) # 时间+序号 作为同一时间发表的文章的唯一标识
+        html_name = atc_unique_name+".html"
+        html_file_path = os.path.join(html_path,html_name)
+        print(i,"of",tot_article,atc_unique_name,atc.title)
+        if os.path.exists(html_file_path): # 支持续传
+            print("{} existed already!".format(html_file_path))
+            continue
+        org_atc_html = get_html(atc.url)
+        new_atc_html = rep_image(org_atc_html,local_img_path,html_name)
+        save_file(html_file_path,new_atc_html)
+        sleep(round(random.uniform(1,3),2))
+        """for test
+        if i>0 :
+            break
+        """
+ 
+def conv_html_pdf(html_path,pdf_path):
+    if not os.path.exists(pdf_path):
+        os.makedirs(pdf_path)
+    f_list = os.listdir(html_path)
+    for f in f_list:
+        if (not f[-5:]==".html") or ("tmp" in f): #不是html文件的不转换，含有tmp的不转换
+            continue
+        html_file_path = os.path.join(html_path,f)
+        html_tmp_file = html_file_path[:-5]+"_tmp.html" #生成临时文件，供转pdf用
+        html_str = read_file(html_file_path)
+        bs_html = BeautifulSoup(html_str,"lxml")
+        pdf_title = ""
+        title_tag = bs_html.find(id="activity-name")
+        if title_tag is not None:
+            pdf_title = "_"+title_tag.get_text().replace(" ", "").replace("  ","").replace("\n","")
+        print(pdf_title)
+        r_idx = html_file_path.rindex("/") + 1
+        pdf_name = html_file_path[r_idx:-5]+pdf_title
+        pdf_file_path = os.path.join(pdf_path,pdf_name+".pdf")
+        """
+        加快转换速度，把临时文件中的不必要的元素去掉
+        """
+        [s.extract() for s in bs_html(["script","iframe","link"])]
+        save_file(html_tmp_file,str(bs_html))
+        call_wkhtmltopdf(html_tmp_file,pdf_file_path)
+ 
+def call_wkhtmltopdf(html_file_path,pdf_file_path,skipExists=True,removehtml=True):
+    if skipExists and os.path.exists(pdf_file_path):
+        print("pdf_file_path already existed!")
+        if removehtml :
+            os.remove(html_file_path)
+        return
+    exe_path = cfg['wkhtmltopdf'] #wkhtmltopdf.exe的保存路径
+    cmd_list = []
+    cmd_list.append(" --load-error-handling ignore ")
+    cmd_list.append(" "+ html_file_path +" ")
+    cmd_list.append(" "+ pdf_file_path +" ")
+    cmd_str = exe_path + "".join(cmd_list)
+    print(cmd_str)
+    subprocess.check_call(cmd_str, shell=False)
+    if removehtml:
+        os.remove(html_file_path)
+ 
+def get_config():
+    cfg_file = read_file("config/wechat.cfg")
+    cfg_file = cfg_file.replace("\\\\","/").replace("\\","/") #防止json中有 / 导致无法识别
+    cfg_json = json.loads(cfg_file)
+    return cfg_json
+ 
+def seconds_to_time(seconds):
+    taime_array = time.localtime(seconds) # 1970-01-01 00:00:00 到发表时的秒数
+    other_style_time = time.strftime("%Y-%m-%d %H:%M:%S", taime_array)
+    date_time =datetime.strptime(other_style_time, "%Y-%m-%d %H:%M:%S")
+    return str(date_time).replace("-","").replace(":","").replace(" ","")
+ 
+ 
+cfg = get_config() # 获得配置文件的全局变量
+#get_article_list("./tmp/") # for test
+#down_html("./tmp/","./html/")# for test
+ 
+if __name__ == "__main__":
+ 
+    if len(sys.argv) == 1:
+        arg = None
+    else:
+        arg = sys.argv[1]
+    if arg is None or arg == "html":
+        down_html(cfg['jsonDir'],cfg['htmlDir'])
+    elif arg == "pdf":
+        conv_html_pdf(cfg['htmlDir'],cfg['pdfDir'])
+```
