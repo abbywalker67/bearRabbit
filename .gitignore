@@ -4,3 +4,4 @@ Thumbs.db
 .deploy*/
 themes/
 public/
+node_modules/
