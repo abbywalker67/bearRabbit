@@ -1,0 +1,55 @@
+# Name of the workflow
+name: Build and Deploy Hexo Site
+
+# Controls when the action will run.
+# This workflow runs on push events to the "main" branch.
+on:
+  push:
+    branches:
+      - main
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build-and-deploy:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Step 1: Checks out your source repository AND its submodules (themes)
+      - name: Checkout Source Repo
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive' # This is the crucial line for themes
+
+      # Step 2: Sets up the Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # You can change this to your preferred Node.js version
+          cache: 'npm'
+
+      # Step 3: Install project dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # Step 4: Generate the static files
+      - name: Generate Static Files
+        run: hexo generate
+
+      # Step 5: Deploy the generated files to the deployment repository
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          # The SSH private key we added as a secret
+          deploy_key: ${{ secrets.GH_PAGES_DEPLOY }}
+          # The repository to deploy to
+          external_repository: unclevicky/rabbitBear
+          # The branch to deploy to
+          publish_branch: main
+          # The directory to deploy from (Hexo's default output folder)
+          publish_dir: ./public
+          # The user who is committing the changes
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Site deployed via GitHub Actions'
